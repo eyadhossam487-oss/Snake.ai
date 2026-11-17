@@ -1,0 +1,418 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedOwnerEmail() {
+      return isSignedIn() &&
+             'email' in request.auth.token &&
+             'email_verified' in request.auth.token &&
+             request.auth.token.email == 'eyadhossam487@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    function isFirstAccountOwner() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/app_config/owner) &&
+             get(/databases/$(database)/documents/app_config/owner).data.ownerUid == request.auth.uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isVerifiedOwnerEmail() ||
+        isFirstAccountOwner() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isStandardFreeSkin(skinId) {
+      return skinId in [
+        'cyber_viper',
+        'plasma_cobra',
+        'solar_mamba',
+        'venom_jade',
+        'frost_wyrm',
+        'magma_python',
+        'prismatic_hydra',
+        'void_phantom'
+      ];
+    }
+
+    function isUnlockableSkin(skinId) {
+      return skinId in [
+        'quantum_anaconda',
+        'chrono_basilisk',
+        'nebula_leviathan',
+        'solar_eclipse'
+      ];
+    }
+
+    function isValidSkinForCaller(skinId) {
+      return skinId is string &&
+        skinId.size() >= 1 &&
+        skinId.size() <= 32 &&
+        (
+          isStandardFreeSkin(skinId) ||
+          isUnlockableSkin(skinId) ||
+          (skinId == 'apex_sovereign' && isAdmin())
+        );
+    }
+
+    function isValidPattern(pattern) {
+      return pattern is string && pattern in ['SOLID', 'STRIPED', 'NEON_CORE', 'DOTS'];
+    }
+
+    function isValidDifficulty(diff) {
+      return diff is string && diff in ['EASY', 'MEDIUM', 'HARD', 'APEX'];
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string &&
+             data.userId.size() >= 1 &&
+             data.userId.size() <= 128 &&
+             data.displayName is string &&
+             data.displayName.size() >= 1 &&
+             data.displayName.size() <= 24 &&
+             data.selectedSkinId is string &&
+             (
+               isStandardFreeSkin(data.selectedSkinId) ||
+               (isUnlockableSkin(data.selectedSkinId) && ('unlockedSkinIds' in data) && (data.selectedSkinId in data.unlockedSkinIds)) ||
+               (isValidSkinForCaller(data.selectedSkinId) && isAdmin())
+             ) &&
+             isValidPattern(data.selectedPattern) &&
+             isValidDifficulty(data.preferredDifficulty) &&
+             data.maxLength is int &&
+             data.maxLength >= 10 &&
+             data.maxLength <= 10000000 &&
+             data.totalKills is int &&
+             data.totalKills >= 0 &&
+             data.totalKills <= 10000000 &&
+             data.gamesPlayed is int &&
+             data.gamesPlayed >= 0 &&
+             data.gamesPlayed <= 10000000 &&
+             (!('coins' in data) || (data.coins is int && data.coins >= 0 && data.coins <= 10000000)) &&
+             (!('dailyStreak' in data) || (data.dailyStreak is int && data.dailyStreak >= 0 && data.dailyStreak <= 3650)) &&
+             (!('lastDailyClaimAt' in data) || data.lastDailyClaimAt == null || (data.lastDailyClaimAt is timestamp && data.lastDailyClaimAt <= request.time)) &&
+             (!('unlockedSkinIds' in data) || (data.unlockedSkinIds is list && data.unlockedSkinIds.size() <= 32 && (data.unlockedSkinIds.size() == 0 || data.unlockedSkinIds[0] is string))) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.userId is string &&
+             data.userId.size() >= 1 &&
+             data.userId.size() <= 128 &&
+             data.displayName is string &&
+             data.displayName.size() >= 1 &&
+             data.displayName.size() <= 24 &&
+             isValidSkinForCaller(data.skinId) &&
+             isValidPattern(data.pattern) &&
+             data.maxLength is int &&
+             data.maxLength >= 10 &&
+             data.maxLength <= 10000000 &&
+             data.totalKills is int &&
+             data.totalKills >= 0 &&
+             data.totalKills <= 10000000 &&
+             data.visibility is string &&
+             data.visibility in ['PUBLIC', 'HIDDEN'] &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidArenaRoom(data) {
+      return data.hostId is string &&
+             data.hostId.size() >= 1 &&
+             data.hostId.size() <= 128 &&
+             data.name is string &&
+             data.name.size() >= 2 &&
+             data.name.size() <= 32 &&
+             data.roomCode is string &&
+             data.roomCode.size() >= 4 &&
+             data.roomCode.size() <= 8 &&
+             data.status is string &&
+             data.status in ['WAITING', 'ACTIVE', 'FINISHED'] &&
+             data.visibility is string &&
+             data.visibility in ['PUBLIC', 'PRIVATE'] &&
+             isValidDifficulty(data.botDifficulty) &&
+             data.botCount is int &&
+             data.botCount >= 0 &&
+             data.botCount <= 12 &&
+             data.maxPlayers is int &&
+             data.maxPlayers >= 2 &&
+             data.maxPlayers <= 12 &&
+             data.playerCount is int &&
+             data.playerCount >= 0 &&
+             data.playerCount <= data.maxPlayers &&
+             data.memberUids is list &&
+             data.memberUids.size() <= 12 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidSnakeState(data) {
+      return data.ownerId is string &&
+             data.ownerId.size() >= 1 &&
+             data.ownerId.size() <= 128 &&
+             data.roomVisibility is string &&
+             data.roomVisibility in ['PUBLIC', 'PRIVATE'] &&
+             data.displayName is string &&
+             data.displayName.size() >= 1 &&
+             data.displayName.size() <= 24 &&
+             isValidSkinForCaller(data.skinId) &&
+             isValidPattern(data.pattern) &&
+             data.botControlled is bool &&
+             data.alive is bool &&
+             data.boosting is bool &&
+             data.godMode is bool &&
+             (!data.godMode || isAdmin()) &&
+             data.x is number &&
+             data.x >= 0 &&
+             data.x <= 2600 &&
+             data.y is number &&
+             data.y >= 0 &&
+             data.y <= 2600 &&
+             data.angle is number &&
+             data.score is int &&
+             data.score >= 0 &&
+             data.score <= 10000000 &&
+             data.kills is int &&
+             data.kills >= 0 &&
+             data.kills <= 10000000 &&
+             data.points is list &&
+             data.points.size() <= 160 &&
+             (data.points.size() == 0 || data.points[0] is number) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    // Immutable first-account owner claim (only the very first account can create; nobody can overwrite)
+    match /app_config/{docId} {
+      allow get: if isSignedIn() && docId == 'owner';
+      allow list, update, delete: if false;
+      allow create: if isSignedIn() &&
+                       docId == 'owner' &&
+                       !exists(/databases/$(database)/documents/app_config/owner) &&
+                       incoming().ownerUid == request.auth.uid &&
+                       incoming().keys().hasAll(['ownerUid', 'createdAt']) &&
+                       incoming().keys().hasOnly(['ownerUid', 'createdAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time;
+    }
+
+    // Read-only admin lookup docs (cannot be modified via client SDKs)
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && request.auth.uid == adminUid;
+      allow list, create, update, delete: if false;
+    }
+
+    function wasSkinAlreadyUnlocked(skinId) {
+      return ('unlockedSkinIds' in existing()) && (skinId in existing().unlockedSkinIds);
+    }
+
+    function isValidUserDailyRewardUpdate(affected) {
+      let isClaim = 'lastDailyClaimAt' in affected;
+      let coinsChanged = 'coins' in affected;
+      let streakChanged = 'dailyStreak' in affected;
+      let skinsChanged = 'unlockedSkinIds' in affected;
+      return (
+        isClaim &&
+        (!('lastDailyClaimAt' in existing()) || existing().lastDailyClaimAt == null || existing().lastDailyClaimAt <= request.time - duration.value(24, 'h')) &&
+        incoming().lastDailyClaimAt is timestamp &&
+        incoming().lastDailyClaimAt <= request.time &&
+        (!coinsChanged ||
+          ((!('coins' in existing()) && incoming().coins <= 1000) ||
+           ('coins' in existing() && incoming().coins <= existing().coins + 1000))) &&
+        (!streakChanged || (incoming().dailyStreak >= 1 && incoming().dailyStreak <= 7))
+      ) || (
+        !isClaim &&
+        !streakChanged &&
+        (!coinsChanged || ('coins' in existing() && incoming().coins <= existing().coins)) &&
+        (!skinsChanged ||
+          (coinsChanged &&
+           'coins' in existing() &&
+           incoming().coins <= existing().coins - 250 &&
+           (!('chrono_basilisk' in incoming().unlockedSkinIds) || wasSkinAlreadyUnlocked('chrono_basilisk')) &&
+           (!('nebula_leviathan' in incoming().unlockedSkinIds) || wasSkinAlreadyUnlocked('nebula_leviathan')) &&
+           (!('solar_eclipse' in incoming().unlockedSkinIds) || wasSkinAlreadyUnlocked('solar_eclipse'))))
+      );
+    }
+
+    function canUpdateUserProfile(userId) {
+      let affected = incoming().diff(existing()).affectedKeys();
+      return affected.hasOnly(['displayName', 'selectedSkinId', 'selectedPattern', 'preferredDifficulty', 'maxLength', 'totalKills', 'gamesPlayed', 'coins', 'dailyStreak', 'lastDailyClaimAt', 'unlockedSkinIds', 'updatedAt']) &&
+             (
+               (request.auth.uid == userId && isValidUserDailyRewardUpdate(affected)) ||
+               isAdmin()
+             );
+    }
+
+    // Player Profiles (isolated per owner, admin override)
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isVerifiedOwnerEmail());
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       (request.auth.uid == userId || isAdmin()) &&
+                       incoming().userId == userId &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'selectedSkinId', 'selectedPattern', 'preferredDifficulty', 'maxLength', 'totalKills', 'gamesPlayed', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'selectedSkinId', 'selectedPattern', 'preferredDifficulty', 'maxLength', 'totalKills', 'gamesPlayed', 'coins', 'dailyStreak', 'lastDailyClaimAt', 'unlockedSkinIds', 'createdAt', 'updatedAt']) &&
+                       (
+                         (
+                           (!('coins' in incoming()) || incoming().coins == 0) &&
+                           (!('dailyStreak' in incoming()) || incoming().dailyStreak == 0) &&
+                           (!('lastDailyClaimAt' in incoming()) || incoming().lastDailyClaimAt == null) &&
+                           (!('unlockedSkinIds' in incoming()) || incoming().unlockedSkinIds.size() == 0)
+                         ) ||
+                         isAdmin()
+                       ) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       canUpdateUserProfile(userId) &&
+                       isValidUserProfile(incoming());
+
+      allow delete: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Global Hall of Fame Leaderboard (ranked by maxLength)
+    match /leaderboard/{entryId} {
+      allow get: if isSignedIn() && isValidId(entryId) && (existing().visibility == 'PUBLIC' || existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().visibility == 'PUBLIC' || existing().userId == request.auth.uid || isVerifiedOwnerEmail());
+
+      allow create: if isSignedIn() &&
+                       isValidId(entryId) &&
+                       (request.auth.uid == entryId || isAdmin()) &&
+                       incoming().userId == entryId &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'skinId', 'pattern', 'maxLength', 'totalKills', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'skinId', 'pattern', 'maxLength', 'totalKills', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidLeaderboardEntry(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(entryId) &&
+                       isValidLeaderboardEntry(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (request.auth.uid == entryId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'skinId', 'pattern', 'maxLength', 'totalKills', 'updatedAt'])) ||
+                         (isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'skinId', 'pattern', 'maxLength', 'totalKills', 'visibility', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(entryId) && (request.auth.uid == entryId || isAdmin());
+    }
+
+    // Multiplayer Arena Rooms
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && (existing().visibility == 'PUBLIC' || request.auth.uid in existing().memberUids || isAdmin());
+      allow list: if isSignedIn() && (existing().visibility == 'PUBLIC' || request.auth.uid in existing().memberUids || isVerifiedOwnerEmail());
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostId == request.auth.uid &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().memberUids.size() == 1 &&
+                       incoming().playerCount == 1 &&
+                       incoming().status == 'WAITING' &&
+                       incoming().keys().hasAll(['hostId', 'name', 'roomCode', 'status', 'visibility', 'botDifficulty', 'botCount', 'maxPlayers', 'playerCount', 'memberUids', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['hostId', 'name', 'roomCode', 'status', 'visibility', 'botDifficulty', 'botCount', 'maxPlayers', 'playerCount', 'memberUids', 'createdAt', 'updatedAt']) &&
+                       isValidArenaRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidArenaRoom(incoming()) &&
+                       incoming().hostId == existing().hostId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().status != 'FINISHED' &&
+                           (
+                             // Host updating room config / status
+                             (existing().hostId == request.auth.uid &&
+                              incoming().diff(existing()).affectedKeys().hasOnly(['name', 'status', 'visibility', 'botDifficulty', 'botCount', 'maxPlayers', 'playerCount', 'memberUids', 'updatedAt'])) ||
+                             // Join action
+                             (!(request.auth.uid in existing().memberUids) &&
+                              request.auth.uid in incoming().memberUids &&
+                              incoming().memberUids.hasAll(existing().memberUids) &&
+                              incoming().memberUids.size() == existing().memberUids.size() + 1 &&
+                              existing().playerCount < existing().maxPlayers &&
+                              incoming().playerCount == existing().playerCount + 1 &&
+                              incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'playerCount', 'updatedAt'])) ||
+                             // Leave action
+                             (request.auth.uid in existing().memberUids &&
+                              !(request.auth.uid in incoming().memberUids) &&
+                              existing().memberUids.hasAll(incoming().memberUids) &&
+                              incoming().memberUids.size() == existing().memberUids.size() - 1 &&
+                              incoming().playerCount == existing().playerCount - 1 &&
+                              incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'playerCount', 'updatedAt']))
+                           )
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && (existing().hostId == request.auth.uid || isAdmin());
+
+      // Real-time snake positions inside a room
+      match /snakes/{snakeId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(snakeId) && (existing().roomVisibility == 'PUBLIC' || existing().ownerId == request.auth.uid || isAdmin());
+        allow list: if isSignedIn() && (existing().roomVisibility == 'PUBLIC' || existing().ownerId == request.auth.uid || isVerifiedOwnerEmail());
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(snakeId) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids || isAdmin()) &&
+                         incoming().ownerId == request.auth.uid &&
+                         (!incoming().botControlled || get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid || isAdmin()) &&
+                         incoming().keys().hasAll(['ownerId', 'roomVisibility', 'displayName', 'skinId', 'pattern', 'botControlled', 'alive', 'boosting', 'godMode', 'x', 'y', 'angle', 'score', 'kills', 'points', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['ownerId', 'roomVisibility', 'displayName', 'skinId', 'pattern', 'botControlled', 'alive', 'boosting', 'godMode', 'x', 'y', 'angle', 'score', 'kills', 'points', 'createdAt', 'updatedAt']) &&
+                         isValidSnakeState(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidSnakeState(incoming()) &&
+                         incoming().ownerId == existing().ownerId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (existing().ownerId == request.auth.uid &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'skinId', 'pattern', 'alive', 'boosting', 'godMode', 'x', 'y', 'angle', 'score', 'kills', 'points', 'updatedAt'])) ||
+                           isAdmin()
+                         );
+
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(snakeId) && (existing().ownerId == request.auth.uid || isAdmin());
+      }
+    }
+  }
+}

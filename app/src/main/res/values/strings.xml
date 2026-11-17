@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">snake.ai</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="hero_banner_desc">Bioluminescent cyber snake arena illustration</string>
+</resources>

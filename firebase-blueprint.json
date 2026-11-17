@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Player profile, snake skin customization, preferred bot difficulty, and lifetime stats.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase UID." },
+        "displayName": { "type": "string", "description": "Player arena nickname (1-24 chars)." },
+        "selectedSkinId": {
+          "type": "string",
+          "enum": [
+            "cyber_viper",
+            "plasma_cobra",
+            "solar_mamba",
+            "venom_jade",
+            "frost_wyrm",
+            "magma_python",
+            "prismatic_hydra",
+            "void_phantom",
+            "quantum_anaconda",
+            "chrono_basilisk",
+            "nebula_leviathan",
+            "solar_eclipse",
+            "apex_sovereign"
+          ]
+        },
+        "selectedPattern": {
+          "type": "string",
+          "enum": ["SOLID", "STRIPED", "NEON_CORE", "DOTS"]
+        },
+        "preferredDifficulty": {
+          "type": "string",
+          "enum": ["EASY", "MEDIUM", "HARD", "APEX"]
+        },
+        "maxLength": { "type": "integer", "description": "Maximum snake length ever achieved." },
+        "totalKills": { "type": "integer", "description": "Total eliminations achieved." },
+        "gamesPlayed": { "type": "integer", "description": "Total matches played." },
+        "coins": { "type": "integer", "description": "Earned Venom Coins currency balance." },
+        "dailyStreak": { "type": "integer", "description": "Current 24-hour daily login reward streak day (0-7)." },
+        "lastDailyClaimAt": { "type": "string", "format": "date-time", "description": "Server timestamp of the last daily login reward claim." },
+        "unlockedSkinIds": { "type": "array", "description": "List of unlocked reward or shop skin IDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "selectedSkinId",
+        "selectedPattern",
+        "preferredDifficulty",
+        "maxLength",
+        "totalKills",
+        "gamesPlayed",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Global Hall of Fame record ranked by maximum snake length achieved.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase UID." },
+        "displayName": { "type": "string", "description": "Player display name." },
+        "skinId": { "type": "string", "description": "Equipped snake skin ID." },
+        "pattern": { "type": "string", "enum": ["SOLID", "STRIPED", "NEON_CORE", "DOTS"] },
+        "maxLength": { "type": "integer", "description": "Maximum snake length achieved." },
+        "totalKills": { "type": "integer", "description": "Total eliminations." },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "HIDDEN"] },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "skinId",
+        "pattern",
+        "maxLength",
+        "totalKills",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ArenaRoom": {
+      "title": "ArenaRoom",
+      "description": "Multiplayer snake battle arena room with bot difficulty and member roster.",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string", "description": "UID of the room host." },
+        "name": { "type": "string", "description": "Arena room display name." },
+        "roomCode": { "type": "string", "description": "Join code (4-8 alphanumeric chars)." },
+        "status": { "type": "string", "enum": ["WAITING", "ACTIVE", "FINISHED"] },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] },
+        "botDifficulty": { "type": "string", "enum": ["EASY", "MEDIUM", "HARD", "APEX"] },
+        "botCount": { "type": "integer", "description": "Number of AI bots (0-12)." },
+        "maxPlayers": { "type": "integer", "description": "Maximum human players (2-12)." },
+        "playerCount": { "type": "integer", "description": "Current joined human players." },
+        "memberUids": { "type": "array", "description": "Joined human player UIDs (max 12)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "hostId",
+        "name",
+        "roomCode",
+        "status",
+        "visibility",
+        "botDifficulty",
+        "botCount",
+        "maxPlayers",
+        "playerCount",
+        "memberUids",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RemoteSnakeDoc": {
+      "title": "RemoteSnakeDoc",
+      "description": "Real-time snake state in a multiplayer arena room (human or host-simulated bot).",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "UID of player or room host for bots." },
+        "roomVisibility": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] },
+        "displayName": { "type": "string", "description": "Snake display name." },
+        "skinId": { "type": "string", "description": "Equipped skin ID." },
+        "pattern": { "type": "string", "enum": ["SOLID", "STRIPED", "NEON_CORE", "DOTS"] },
+        "botControlled": { "type": "boolean", "description": "True if AI bot managed by host." },
+        "alive": { "type": "boolean", "description": "Whether snake is currently alive." },
+        "boosting": { "type": "boolean", "description": "Whether snake is boosting." },
+        "godMode": { "type": "boolean", "description": "Owner-only invincibility flag." },
+        "x": { "type": "number", "description": "Head X position in arena." },
+        "y": { "type": "number", "description": "Head Y position in arena." },
+        "angle": { "type": "number", "description": "Heading angle in radians." },
+        "score": { "type": "integer", "description": "Current snake length/score." },
+        "kills": { "type": "integer", "description": "Kills in current match." },
+        "points": { "type": "array", "description": "Flattened [x, y, ...] body coordinates (max 160 numbers)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "ownerId",
+        "roomVisibility",
+        "displayName",
+        "skinId",
+        "pattern",
+        "botControlled",
+        "alive",
+        "boosting",
+        "godMode",
+        "x",
+        "y",
+        "angle",
+        "score",
+        "kills",
+        "points",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AppOwnerConfig": {
+      "title": "AppOwnerConfig",
+      "description": "Immutable first-account owner claim document.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "description": "UID of the very first account created." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp when claimed." }
+      },
+      "required": ["ownerUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/app_config/{docId}": {
+      "schema": { "$ref": "#/entities/AppOwnerConfig" },
+      "description": "Stores the immutable first-account owner UID at /app_config/owner."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private player profile, equipped snake skin, and personal best stats."
+    },
+    "/leaderboard/{entryId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Global Hall of Fame ranked by maximum snake length achieved."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/ArenaRoom" },
+      "description": "Real-time multiplayer snake battle rooms."
+    },
+    "/rooms/{roomId}/snakes/{snakeId}": {
+      "schema": { "$ref": "#/entities/RemoteSnakeDoc" },
+      "description": "Live synchronized snake coordinates and skins inside a multiplayer room."
+    }
+  }
+}

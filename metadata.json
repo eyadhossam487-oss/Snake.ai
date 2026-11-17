@@ -1,0 +1,6 @@
+{
+  "name": "snake.ai",
+  "description": "Real-time multiplayer arcade snake battle arena with customizable snake skins, boost mechanics, and live leaderboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
